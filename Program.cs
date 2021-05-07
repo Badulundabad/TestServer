@@ -22,13 +22,14 @@ namespace TestSERVER
 
         private static NetworkStream Listen()
         {
-            IPEndPoint serverAddress = new IPEndPoint(IPAddress.Any, 8005);
+            IPEndPoint serverAddress = new IPEndPoint(IPAddress.Any, 8321);
             Socket listeningSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             listeningSocket.Bind(serverAddress);
             listeningSocket.Listen(10);
             Socket socket = listeningSocket.Accept();
             return new NetworkStream(socket);
         }
+
         private static void Receive(NetworkStream stream)
         {
             Console.WriteLine("Connected");
@@ -39,23 +40,20 @@ namespace TestSERVER
                     Byte[] buffer = new Byte[4];
                     stream.Read(buffer, 0, 4);
                     Int32 size = BitConverter.ToInt32(buffer, 0);
-                    Console.WriteLine($"started to receive {size} bytes");
+                    StringBuilder builder = new StringBuilder(size);
+                    buffer = new byte[32];
 
-                    buffer = new byte[8];
-                    StringBuilder builder = new StringBuilder();
-
+                    Console.WriteLine($"{DateTime.Now} started to receive {size} bytes");
                     do
                     {
-                        if (builder.Length >= size) break;
-                        stream.Read(buffer, 0, buffer.Length);
-                        String s = Encoding.UTF8.GetString(buffer);
-                        builder.Append(s);
-                        if (!stream.DataAvailable) break;
-                        Console.WriteLine($"received {builder.Length} bytes");
-                        //GC.Collect();
+                        size -= stream.Read(buffer, 0, buffer.Length);
+                        builder.Append(Encoding.UTF8.GetString(buffer));
                     }
-                    while (true);
-                    HandleStringAsync(builder.ToString());
+                    while (size > 0);
+                    builder.Length = 0;
+                    builder.Capacity = 0;
+                    Console.WriteLine($"{DateTime.Now} received bytes");
+                    GC.Collect();
                 }
             }
         }
@@ -63,9 +61,6 @@ namespace TestSERVER
         {
             await Task.Run(() =>
             {
-                File.WriteAllText(@"C:\Users\Бадулундабад\Desktop\rec.txt", response);
-                response = response.Split('#')[1];
-                Console.WriteLine($"finally received {response.Length + 2} bytes\n\n\n");
             });
         }
         private static Operation GetOperation(String json)
